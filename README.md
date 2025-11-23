@@ -1,6 +1,6 @@
 # AI Portfolio Enhancer
 
-The **AI Portfolio Enhancer** is a web application that provides instant, actionable, and tailored feedback on portfolios (websites or GitHub repositories) using the Gemini API. Users can specify their portfolio type and select the analysis model for highly customized reviews.
+The **AI Portfolio Enhancer** is a web application that provides instant, actionable, and tailored feedback on portfolios (websites or GitHub repositories) using the AI. Users can specify their portfolio type and select the analysis model for highly customized reviews.
 
 ## ✨ Features
 
@@ -92,3 +92,4 @@ Open your browser at:
 ## 📄 License
 
 Licensed under the **MIT License**.
+
