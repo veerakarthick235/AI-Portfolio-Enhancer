@@ -2,8 +2,6 @@
 
 <div align="center">
 
-![PortfolioAI Banner](static/ai.png)
-
 **Get instant, expert-level AI feedback on your developer portfolio or GitHub repository.**  
 No signup. No credit card. Just results.
 
