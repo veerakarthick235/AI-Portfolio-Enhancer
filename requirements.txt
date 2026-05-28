@@ -1,4 +1,6 @@
-Flask
-google-genai
+flask
 requests
+google-genai
 python-dotenv
+flask-limiter
+flask-cors
