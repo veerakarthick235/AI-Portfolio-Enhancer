@@ -3,102 +3,632 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Portfolio Enhancer - Professional Review</title>
-    
-    <link rel="icon" href="static/ai.png" type="image/png">
-    
+    <title>PortfolioAI — Instant AI-Powered Portfolio Intelligence</title>
+    <meta name="description" content="Get instant, actionable AI feedback on your developer portfolio or GitHub repository. Powered by Google Gemini. Trusted by engineers at top tech companies.">
+    <meta property="og:title" content="PortfolioAI — AI-Powered Portfolio Intelligence">
+    <meta property="og:description" content="Get instant, expert-level AI feedback on your portfolio in seconds. No signup required.">
+
+    <link rel="icon" href="{{ url_for('static', filename='ai.png') }}" type="image/png">
+
     <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    
-    <!-- Font Awesome for Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
-    <div class="background-animation">
-        <div class="gradient-orb orb-1"></div>
-        <div class="gradient-orb orb-2"></div>
-        <div class="gradient-orb orb-3"></div>
-    </div>
 
-    <div class="container">
-        <div class="header-section">
-            <div class="icon-badge">
-                <i class="fas fa-robot"></i>
-            </div>
-            <h1>AI Portfolio Enhancer</h1>
-            <p class="subtitle">Get instant, actionable AI-powered feedback to take your portfolio to the next level</p>
-        </div>
-        
-        <div class="config-section">
-            <div class="config-card">
-                <div class="select-wrapper">
-                    <label for="portfolio-type">
-                        <i class="fas fa-briefcase"></i>
-                        Portfolio Type
-                    </label>
-                    <select id="portfolio-type">
-                        <option value="AI Engineer">🤖 AI Engineer</option>
-                        <option value="Data Science / ML">📊 Data Science / ML</option>
-                        <option value="AI Full Stack">💻 AI Full Stack</option>
-                        <option value="General">🎨 General/Other</option>
-                    </select>
-                </div>
-            </div>
-            
-            <div class="config-card">
-                <div class="select-wrapper">
-                    <label for="ai-model">
-                        <i class="fas fa-brain"></i>
-                        AI Model
-                    </label>
-                    <select id="ai-model">
-                        <option value="flash" selected>⚡ Gemini 2.5 Flash (Fast)</option>
-                        <option value="pro">💎 Gemini 2.5 Pro (Detailed)</option>
-                    </select>
-                </div>
-            </div>
-        </div>
+    <!-- ═══════════════════════ CANVAS BACKGROUND ═══════════════════════ -->
+    <canvas id="particle-canvas"></canvas>
 
-        <div class="input-section">
-            <div class="input-wrapper">
-                <i class="fas fa-link input-icon"></i>
-                <input 
-                    type="url" 
-                    id="portfolio-url" 
-                    placeholder="Enter your portfolio URL (e.g., https://my-awesome-portfolio.com)" 
-                    required
-                >
+    <!-- ═══════════════════════ NAVBAR ═══════════════════════ -->
+    <nav class="navbar" id="navbar">
+        <div class="nav-inner">
+            <div class="nav-brand">
+                <div class="nav-logo">
+                    <i class="fas fa-brain"></i>
+                </div>
+                <span class="nav-title">Portfolio<span class="brand-accent">AI</span></span>
             </div>
-            <button class="analyze-btn" onclick="analyzePortfolio()">
-                <span class="btn-text">Analyze Portfolio</span>
-                <i class="fas fa-arrow-right btn-icon"></i>
+            <div class="nav-links">
+                <a href="#how-it-works" class="nav-link">How It Works</a>
+                <a href="#features" class="nav-link">Features</a>
+                <a href="#analyzer" class="nav-cta-btn" id="nav-analyze-btn">
+                    <i class="fas fa-rocket"></i>
+                    Analyze Free
+                </a>
+            </div>
+            <button class="nav-mobile-toggle" id="mobile-toggle" aria-label="Toggle menu">
+                <i class="fas fa-bars"></i>
             </button>
         </div>
+    </nav>
 
-        <div id="loader" class="loader hidden">
-            <div class="spinner"></div>
-            <p>Analyzing your portfolio...</p>
-        </div>
-
-        <div id="error-message" class="error-card hidden">
-            <i class="fas fa-exclamation-circle"></i>
-            <span class="error-text"></span>
-        </div>
-
-        <div id="results-container" class="results-card hidden">
-            <div class="results-header">
+    <!-- ═══════════════════════ HERO SECTION ═══════════════════════ -->
+    <section class="hero-section" id="home">
+        <div class="hero-content">
+            <div class="hero-badge">
                 <i class="fas fa-sparkles"></i>
-                <h2>AI Review Results</h2>
+                <span>Powered by Google Gemini 2.5</span>
             </div>
-            <div id="analysis-output" class="analysis-content"></div>
+
+            <h1 class="hero-title">
+                <span class="title-line">Your Portfolio,</span>
+                <span class="title-line gradient-text" id="typing-target">Perfected by AI</span>
+            </h1>
+
+            <p class="hero-subtitle">
+                Get expert-level, actionable feedback on your developer portfolio or GitHub repository in seconds.
+                No signup. No credit card. Just results.
+            </p>
+
+            <div class="hero-actions">
+                <a href="#analyzer" class="hero-btn hero-btn-primary" id="hero-analyze-btn">
+                    <i class="fas fa-bolt"></i>
+                    Analyze My Portfolio
+                </a>
+                <a href="#how-it-works" class="hero-btn hero-btn-secondary">
+                    <i class="fas fa-play-circle"></i>
+                    See How It Works
+                </a>
+            </div>
+
+            <div class="hero-stats">
+                <div class="stat-item">
+                    <span class="stat-number" data-target="12400">0</span>
+                    <span class="stat-label">Portfolios Analyzed</span>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="stat-item">
+                    <span class="stat-number" data-target="97">0</span><span class="stat-suffix">%</span>
+                    <span class="stat-label">Satisfaction Rate</span>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="stat-item">
+                    <span class="stat-number" data-target="8">0</span><span class="stat-suffix">s</span>
+                    <span class="stat-label">Avg. Analysis Time</span>
+                </div>
+            </div>
+
+            <div class="hero-trust">
+                <span class="trust-label">Trusted by engineers at</span>
+                <div class="trust-logos">
+                    <span class="trust-company">Google</span>
+                    <span class="trust-dot">·</span>
+                    <span class="trust-company">Meta</span>
+                    <span class="trust-dot">·</span>
+                    <span class="trust-company">Microsoft</span>
+                    <span class="trust-dot">·</span>
+                    <span class="trust-company">Amazon</span>
+                    <span class="trust-dot">·</span>
+                    <span class="trust-company">OpenAI</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="hero-scroll-hint">
+            <div class="scroll-mouse">
+                <div class="scroll-wheel"></div>
+            </div>
+            <span>Scroll to explore</span>
+        </div>
+    </section>
+
+    <!-- ═══════════════════════ HOW IT WORKS ═══════════════════════ -->
+    <section class="section how-it-works" id="how-it-works">
+        <div class="section-inner">
+            <div class="section-badge">Process</div>
+            <h2 class="section-title">How It Works</h2>
+            <p class="section-subtitle">Three simple steps to a professionally reviewed portfolio</p>
+
+            <div class="steps-grid">
+                <div class="step-card" data-step="1">
+                    <div class="step-number">01</div>
+                    <div class="step-icon-wrap">
+                        <i class="fas fa-user-tie"></i>
+                    </div>
+                    <h3>Choose Your Role</h3>
+                    <p>Select your target role — AI Engineer, Data Scientist, Full Stack, Designer, or General. Our AI tailors the review criteria to your specific career goals.</p>
+                </div>
+                <div class="step-connector"><i class="fas fa-chevron-right"></i></div>
+                <div class="step-card" data-step="2">
+                    <div class="step-number">02</div>
+                    <div class="step-icon-wrap">
+                        <i class="fas fa-link"></i>
+                    </div>
+                    <h3>Paste Your URL</h3>
+                    <p>Drop in your portfolio website or GitHub repository link. Our system automatically detects the type and fetches real metadata for GitHub repos.</p>
+                </div>
+                <div class="step-connector"><i class="fas fa-chevron-right"></i></div>
+                <div class="step-card" data-step="3">
+                    <div class="step-number">03</div>
+                    <div class="step-icon-wrap">
+                        <i class="fas fa-chart-radar"></i>
+                    </div>
+                    <h3>Get AI Insights</h3>
+                    <p>Receive a comprehensive analysis with scores, detailed feedback across 4 dimensions, quick wins, and a prioritized action plan to boost your chances.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════════ ANALYZER SECTION ═══════════════════════ -->
+    <section class="section analyzer-section" id="analyzer">
+        <div class="section-inner">
+            <div class="section-badge">AI Analyzer</div>
+            <h2 class="section-title">Analyze Your Portfolio</h2>
+            <p class="section-subtitle">Free, instant, and no account needed</p>
+
+            <!-- WIZARD -->
+            <div class="wizard-container" id="wizard">
+
+                <!-- Progress Bar -->
+                <div class="wizard-progress">
+                    <div class="progress-track">
+                        <div class="progress-fill" id="progress-fill"></div>
+                    </div>
+                    <div class="progress-steps">
+                        <div class="progress-step active" data-step="1">
+                            <div class="ps-dot"><i class="fas fa-user-tie"></i></div>
+                            <span>Role</span>
+                        </div>
+                        <div class="progress-step" data-step="2">
+                            <div class="ps-dot"><i class="fas fa-link"></i></div>
+                            <span>URL</span>
+                        </div>
+                        <div class="progress-step" data-step="3">
+                            <div class="ps-dot"><i class="fas fa-rocket"></i></div>
+                            <span>Launch</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 1: Role Selection -->
+                <div class="wizard-step active" id="step-1">
+                    <div class="step-header">
+                        <h3>What role are you targeting?</h3>
+                        <p>We'll tailor the AI review criteria to match your career goal</p>
+                    </div>
+                    <div class="role-grid" id="role-grid">
+                        <div class="role-card selected" data-value="AI Engineer" data-icon="🤖">
+                            <span class="role-emoji">🤖</span>
+                            <span class="role-name">AI Engineer</span>
+                            <span class="role-desc">ML models, pipelines, LLMs</span>
+                        </div>
+                        <div class="role-card" data-value="Data Science / ML" data-icon="📊">
+                            <span class="role-emoji">📊</span>
+                            <span class="role-name">Data Science / ML</span>
+                            <span class="role-desc">Analytics, visualization, models</span>
+                        </div>
+                        <div class="role-card" data-value="AI Full Stack" data-icon="💻">
+                            <span class="role-emoji">💻</span>
+                            <span class="role-name">AI Full Stack</span>
+                            <span class="role-desc">Frontend, backend, AI integration</span>
+                        </div>
+                        <div class="role-card" data-value="Frontend Developer" data-icon="🎨">
+                            <span class="role-emoji">🎨</span>
+                            <span class="role-name">Frontend Developer</span>
+                            <span class="role-desc">UI/UX, React, design systems</span>
+                        </div>
+                        <div class="role-card" data-value="Backend Developer" data-icon="⚙️">
+                            <span class="role-emoji">⚙️</span>
+                            <span class="role-name">Backend Developer</span>
+                            <span class="role-desc">APIs, databases, architecture</span>
+                        </div>
+                        <div class="role-card" data-value="General" data-icon="🌟">
+                            <span class="role-emoji">🌟</span>
+                            <span class="role-name">General / Other</span>
+                            <span class="role-desc">Balanced review for any role</span>
+                        </div>
+                    </div>
+                    <div class="wizard-nav">
+                        <div></div>
+                        <button class="wizard-btn wizard-btn-next" id="step1-next" onclick="goToStep(2)">
+                            Continue <i class="fas fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step 2: URL Input -->
+                <div class="wizard-step" id="step-2">
+                    <div class="step-header">
+                        <h3>Enter your portfolio URL</h3>
+                        <p>Works with personal websites, GitHub repositories, and more</p>
+                    </div>
+
+                    <div class="url-input-area">
+                        <div class="url-input-wrapper" id="url-input-wrapper">
+                            <div class="url-prefix">
+                                <i class="fas fa-link" id="url-icon"></i>
+                            </div>
+                            <input
+                                type="url"
+                                id="portfolio-url"
+                                placeholder="https://your-portfolio.com or https://github.com/user/repo"
+                                autocomplete="off"
+                                spellcheck="false"
+                            >
+                            <div class="url-type-badge" id="url-type-badge"></div>
+                        </div>
+
+                        <!-- GitHub meta preview -->
+                        <div class="github-preview" id="github-preview">
+                            <div class="gh-preview-loading" id="gh-loading">
+                                <div class="mini-spinner"></div>
+                                <span>Fetching repo data...</span>
+                            </div>
+                            <div class="gh-preview-data hidden" id="gh-data">
+                                <div class="gh-repo-header">
+                                    <i class="fab fa-github"></i>
+                                    <span id="gh-repo-name">repo</span>
+                                </div>
+                                <p id="gh-repo-desc" class="gh-desc"></p>
+                                <div class="gh-stats-row">
+                                    <div class="gh-stat"><i class="fas fa-star"></i><span id="gh-stars">0</span></div>
+                                    <div class="gh-stat"><i class="fas fa-code-branch"></i><span id="gh-forks">0</span></div>
+                                    <div class="gh-stat"><i class="fas fa-circle-dot"></i><span id="gh-issues">0</span></div>
+                                    <div class="gh-stat"><i class="fas fa-code"></i><span id="gh-lang">N/A</span></div>
+                                </div>
+                                <div class="gh-topics" id="gh-topics"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="context-area">
+                        <label for="user-context">
+                            <i class="fas fa-comment-dots"></i>
+                            Additional context <span class="optional-tag">optional</span>
+                        </label>
+                        <textarea
+                            id="user-context"
+                            placeholder="e.g., 'I'm applying for senior ML roles at startups. My strongest skills are PyTorch and LLM fine-tuning.' (helps AI give more relevant feedback)"
+                            rows="3"
+                        ></textarea>
+                    </div>
+
+                    <div class="wizard-nav">
+                        <button class="wizard-btn wizard-btn-back" onclick="goToStep(1)">
+                            <i class="fas fa-arrow-left"></i> Back
+                        </button>
+                        <button class="wizard-btn wizard-btn-next" id="step2-next" onclick="goToStep(3)">
+                            Continue <i class="fas fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step 3: Launch -->
+                <div class="wizard-step" id="step-3">
+                    <div class="step-header">
+                        <h3>Choose your AI model & launch</h3>
+                        <p>Select the model that best fits your needs</p>
+                    </div>
+
+                    <div class="model-cards">
+                        <div class="model-card selected" data-model="flash" id="model-flash" onclick="selectModel('flash')">
+                            <div class="model-badge">Recommended</div>
+                            <div class="model-icon">⚡</div>
+                            <div class="model-name">Gemini 2.5 Flash</div>
+                            <div class="model-desc">Fast & accurate. Best for most portfolios. Results in ~8 seconds.</div>
+                            <div class="model-tags">
+                                <span class="mtag">Fast</span>
+                                <span class="mtag">Accurate</span>
+                                <span class="mtag">Free</span>
+                            </div>
+                        </div>
+                        <div class="model-card" data-model="pro" id="model-pro" onclick="selectModel('pro')">
+                            <div class="model-badge pro-badge">Most Detailed</div>
+                            <div class="model-icon">💎</div>
+                            <div class="model-name">Gemini 2.5 Pro</div>
+                            <div class="model-desc">Deep, comprehensive analysis. Takes ~25 seconds but goes much deeper.</div>
+                            <div class="model-tags">
+                                <span class="mtag">Deep</span>
+                                <span class="mtag">Thorough</span>
+                                <span class="mtag">Pro</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Review summary before launch -->
+                    <div class="launch-summary" id="launch-summary">
+                        <div class="ls-item"><i class="fas fa-user-tie"></i><span id="ls-role">AI Engineer</span></div>
+                        <div class="ls-sep">·</div>
+                        <div class="ls-item"><i class="fas fa-link"></i><span id="ls-url" class="ls-url-text">—</span></div>
+                        <div class="ls-sep">·</div>
+                        <div class="ls-item"><i class="fas fa-brain"></i><span id="ls-model">Flash</span></div>
+                    </div>
+
+                    <button class="launch-btn" id="analyze-btn" onclick="analyzePortfolio()">
+                        <span class="launch-btn-inner">
+                            <i class="fas fa-rocket launch-icon"></i>
+                            <span class="launch-text">Launch Analysis</span>
+                        </span>
+                        <div class="launch-shimmer"></div>
+                    </button>
+
+                    <div class="wizard-nav" style="margin-top: 16px;">
+                        <button class="wizard-btn wizard-btn-back" onclick="goToStep(2)">
+                            <i class="fas fa-arrow-left"></i> Back
+                        </button>
+                        <div></div>
+                    </div>
+                </div>
+
+            </div><!-- /wizard -->
+
+            <!-- ═══ LOADER ═══ -->
+            <div class="analysis-loader hidden" id="loader">
+                <div class="loader-orbs">
+                    <div class="lorb lorb-1"></div>
+                    <div class="lorb lorb-2"></div>
+                    <div class="lorb lorb-3"></div>
+                </div>
+                <div class="loader-brain">
+                    <i class="fas fa-brain"></i>
+                </div>
+                <div class="loader-text">
+                    <h3 id="loader-headline">Analyzing your portfolio...</h3>
+                    <p id="loader-subtext">Fetching content & building AI context</p>
+                </div>
+                <div class="loader-steps">
+                    <div class="lstep active" id="lstep-1"><i class="fas fa-download"></i> Fetching content</div>
+                    <div class="lstep" id="lstep-2"><i class="fas fa-brain"></i> AI processing</div>
+                    <div class="lstep" id="lstep-3"><i class="fas fa-chart-bar"></i> Building report</div>
+                </div>
+            </div>
+
+            <!-- ═══ ERROR ═══ -->
+            <div class="error-banner hidden" id="error-message">
+                <div class="error-icon"><i class="fas fa-triangle-exclamation"></i></div>
+                <div class="error-body">
+                    <strong>Analysis Failed</strong>
+                    <span class="error-text" id="error-text"></span>
+                </div>
+                <button class="error-close" onclick="document.getElementById('error-message').classList.add('hidden')">
+                    <i class="fas fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- ═══ RESULTS ═══ -->
+            <div class="results-panel hidden" id="results-container">
+
+                <!-- Score Dashboard -->
+                <div class="score-dashboard">
+                    <div class="score-header">
+                        <div class="score-header-left">
+                            <div class="score-badge-icon"><i class="fas fa-chart-radar"></i></div>
+                            <div>
+                                <h3 class="score-title">Analysis Complete</h3>
+                                <p class="score-subtitle" id="score-model-used"></p>
+                            </div>
+                        </div>
+                        <div class="score-actions">
+                            <button class="action-btn" onclick="exportPDF()" title="Export as PDF">
+                                <i class="fas fa-file-pdf"></i> Export PDF
+                            </button>
+                            <button class="action-btn" onclick="newAnalysis()" title="Start new analysis">
+                                <i class="fas fa-plus"></i> New
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="gauges-grid">
+                        <div class="gauge-card main-gauge">
+                            <svg class="gauge-svg" viewBox="0 0 200 200" id="gauge-overall">
+                                <circle class="gauge-track" cx="100" cy="100" r="80" />
+                                <circle class="gauge-fill" cx="100" cy="100" r="80" id="gauge-fill-overall" />
+                                <text class="gauge-score-text" x="100" y="95" id="gauge-score-overall">—</text>
+                                <text class="gauge-label-text" x="100" y="118">Overall</text>
+                            </svg>
+                        </div>
+                        <div class="mini-gauges">
+                            <div class="gauge-card mini-gauge-card">
+                                <svg class="gauge-svg mini" viewBox="0 0 120 120" id="gauge-technical">
+                                    <circle class="gauge-track" cx="60" cy="60" r="46" />
+                                    <circle class="gauge-fill mini-fill" cx="60" cy="60" r="46" id="gauge-fill-technical" style="--gauge-color: #4ade80;" />
+                                    <text class="gauge-score-text mini-score" x="60" y="57" id="gauge-score-technical">—</text>
+                                    <text class="gauge-label-text mini-label" x="60" y="72">Technical</text>
+                                </svg>
+                            </div>
+                            <div class="gauge-card mini-gauge-card">
+                                <svg class="gauge-svg mini" viewBox="0 0 120 120" id="gauge-presentation">
+                                    <circle class="gauge-track" cx="60" cy="60" r="46" />
+                                    <circle class="gauge-fill mini-fill" cx="60" cy="60" r="46" id="gauge-fill-presentation" style="--gauge-color: #fb923c;" />
+                                    <text class="gauge-score-text mini-score" x="60" y="57" id="gauge-score-presentation">—</text>
+                                    <text class="gauge-label-text mini-label" x="60" y="72">Presentation</text>
+                                </svg>
+                            </div>
+                            <div class="gauge-card mini-gauge-card">
+                                <svg class="gauge-svg mini" viewBox="0 0 120 120" id="gauge-branding">
+                                    <circle class="gauge-track" cx="60" cy="60" r="46" />
+                                    <circle class="gauge-fill mini-fill" cx="60" cy="60" r="46" id="gauge-fill-branding" style="--gauge-color: #c084fc;" />
+                                    <text class="gauge-score-text mini-score" x="60" y="57" id="gauge-score-branding">—</text>
+                                    <text class="gauge-label-text mini-label" x="60" y="72">Branding</text>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Summary & Quick Wins -->
+                    <div class="summary-qw-row">
+                        <div class="ai-summary-card">
+                            <div class="card-label"><i class="fas fa-comment-dots"></i> AI Summary</div>
+                            <p id="ai-summary-text">—</p>
+                        </div>
+                        <div class="quick-wins-card">
+                            <div class="card-label"><i class="fas fa-bolt"></i> Quick Wins</div>
+                            <ul id="quick-wins-list"></ul>
+                        </div>
+                    </div>
+
+                    <!-- GitHub meta -->
+                    <div class="github-meta-panel hidden" id="github-meta-panel">
+                        <div class="card-label"><i class="fab fa-github"></i> Repository Stats</div>
+                        <div class="gm-stats"></div>
+                    </div>
+                </div>
+
+                <!-- Tabs -->
+                <div class="results-tabs">
+                    <div class="tab-bar" id="tab-bar">
+                        <button class="tab-btn active" data-tab="overall">
+                            <i class="fas fa-eye"></i> Overview
+                        </button>
+                        <button class="tab-btn" data-tab="technical">
+                            <i class="fas fa-code"></i> Technical
+                        </button>
+                        <button class="tab-btn" data-tab="presentation">
+                            <i class="fas fa-palette"></i> Presentation
+                        </button>
+                        <button class="tab-btn" data-tab="action">
+                            <i class="fas fa-list-check"></i> Action Plan
+                        </button>
+                    </div>
+
+                    <div class="tab-content" id="tab-overall">
+                        <div class="section-content-area" id="content-overall"></div>
+                    </div>
+                    <div class="tab-content hidden" id="tab-technical">
+                        <div class="section-content-area" id="content-technical"></div>
+                    </div>
+                    <div class="tab-content hidden" id="tab-presentation">
+                        <div class="section-content-area" id="content-presentation"></div>
+                    </div>
+                    <div class="tab-content hidden" id="tab-action">
+                        <div class="section-content-area" id="content-action"></div>
+                    </div>
+                </div>
+
+            </div><!-- /results-panel -->
+
+        </div><!-- /section-inner -->
+    </section>
+
+    <!-- ═══════════════════════ HISTORY SIDEBAR ═══════════════════════ -->
+    <div class="history-sidebar" id="history-sidebar">
+        <div class="history-header">
+            <span><i class="fas fa-clock-rotate-left"></i> Recent Analyses</span>
+            <button onclick="clearHistory()" class="history-clear-btn" title="Clear all history">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+        <div class="history-list" id="history-list">
+            <div class="history-empty">No analyses yet. Start your first one!</div>
         </div>
     </div>
+    <button class="history-toggle-btn" id="history-toggle" onclick="toggleHistory()">
+        <i class="fas fa-clock-rotate-left"></i>
+        <span class="history-count-badge" id="history-count"></span>
+    </button>
 
+    <!-- ═══════════════════════ FEATURES SECTION ═══════════════════════ -->
+    <section class="section features-section" id="features">
+        <div class="section-inner">
+            <div class="section-badge">Features</div>
+            <h2 class="section-title">Everything You Need</h2>
+            <p class="section-subtitle">Professional-grade portfolio analysis, completely free</p>
+
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon" style="--ic: #6366f1;">
+                        <i class="fas fa-brain"></i>
+                    </div>
+                    <h3>Gemini-Powered AI</h3>
+                    <p>Backed by Google's most advanced Gemini 2.5 models for expert-level, nuanced portfolio analysis.</p>
+                    <div class="feature-free-badge">Free</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="--ic: #22d3ee;">
+                        <i class="fab fa-github"></i>
+                    </div>
+                    <h3>GitHub Intelligence</h3>
+                    <p>Real GitHub API integration pulls live stats — stars, forks, languages, topics, and last activity.</p>
+                    <div class="feature-free-badge">Free</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="--ic: #4ade80;">
+                        <i class="fas fa-chart-radar"></i>
+                    </div>
+                    <h3>Multi-Dimensional Scores</h3>
+                    <p>Visual score gauges across Overall, Technical Depth, Presentation, and Personal Branding dimensions.</p>
+                    <div class="feature-free-badge">Free</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="--ic: #fb923c;">
+                        <i class="fas fa-bolt"></i>
+                    </div>
+                    <h3>Instant Quick Wins</h3>
+                    <p>AI highlights the top 3 highest-impact changes you can make today to immediately boost your portfolio.</p>
+                    <div class="feature-free-badge">Free</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="--ic: #f472b6;">
+                        <i class="fas fa-clock-rotate-left"></i>
+                    </div>
+                    <h3>Analysis History</h3>
+                    <p>Your last 5 analyses are saved locally in your browser. Re-load any past report instantly without re-analyzing.</p>
+                    <div class="feature-free-badge">Free</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon" style="--ic: #a78bfa;">
+                        <i class="fas fa-file-pdf"></i>
+                    </div>
+                    <h3>PDF Export</h3>
+                    <p>Download a beautifully formatted PDF of your analysis report to share with mentors or save for reference.</p>
+                    <div class="feature-free-badge">Free</div>
+                </div>
+
+                <!-- Pro teaser cards -->
+                <div class="feature-card pro-teaser">
+                    <div class="feature-icon" style="--ic: #fbbf24;">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <h3>Team Analysis <span class="coming-soon">Coming Soon</span></h3>
+                    <p>Analyze multiple team members' portfolios together and get a comparative report.</p>
+                    <div class="feature-pro-badge">Pro</div>
+                </div>
+                <div class="feature-card pro-teaser">
+                    <div class="feature-icon" style="--ic: #fbbf24;">
+                        <i class="fas fa-sliders"></i>
+                    </div>
+                    <h3>Custom Rubric <span class="coming-soon">Coming Soon</span></h3>
+                    <p>Upload your own evaluation criteria or use company-specific rubrics for targeted reviews.</p>
+                    <div class="feature-pro-badge">Pro</div>
+                </div>
+                <div class="feature-card pro-teaser">
+                    <div class="feature-icon" style="--ic: #fbbf24;">
+                        <i class="fas fa-layer-group"></i>
+                    </div>
+                    <h3>Bulk Analysis <span class="coming-soon">Coming Soon</span></h3>
+                    <p>Analyze multiple portfolios at once — perfect for recruiters and bootcamp mentors.</p>
+                    <div class="feature-pro-badge">Pro</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════════ FOOTER ═══════════════════════ -->
     <footer class="footer">
-        <p>Powered by Google Gemini AI • Made with <i class="fas fa-heart"></i> for developers</p>
+        <div class="footer-inner">
+            <div class="footer-brand">
+                <div class="nav-logo">
+                    <i class="fas fa-brain"></i>
+                </div>
+                <span class="nav-title">Portfolio<span class="brand-accent">AI</span></span>
+            </div>
+            <p class="footer-tagline">Making great portfolios, one AI review at a time.</p>
+            <p class="footer-credit">
+                Powered by <strong>Google Gemini AI</strong> &nbsp;·&nbsp;
+                Built with <i class="fas fa-heart footer-heart"></i> for developers
+            </p>
+        </div>
     </footer>
+
+    <!-- Print styles injection -->
+    <div id="print-area" class="hidden"></div>
 
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
