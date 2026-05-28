@@ -7,6 +7,7 @@ from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from google import genai
+from google.genai import types
 from google.genai.errors import APIError
 from dotenv import load_dotenv
 
@@ -19,9 +20,9 @@ GITHUB_TOKEN = os.getenv('GITHUB_TOKEN', '')  # Optional: for higher GitHub API 
 app = Flask(__name__)
 CORS(app)
 
-# Rate Limiting: 15 analyze requests per hour per IP
+# FIX 1: Flask-Limiter 3.x requires key_func as a keyword argument
 limiter = Limiter(
-    get_remote_address,
+    key_func=get_remote_address,
     app=app,
     default_limits=["200 per day", "50 per hour"],
     storage_uri="memory://"
@@ -39,6 +40,7 @@ if not GEMINI_API_KEY:
 else:
     try:
         client = genai.Client(api_key=GEMINI_API_KEY)
+        print("✅ Gemini client initialized successfully.")
     except Exception as e:
         print(f"Error initializing Gemini client: {e}")
 
@@ -47,15 +49,18 @@ else:
 #  HELPERS
 # ─────────────────────────────────────────────
 
-def fetch_github_meta(url):
+def is_valid_url(url: str) -> bool:
+    """Basic URL validation."""
+    return bool(re.match(r'^https?://', url, re.IGNORECASE))
+
+
+def fetch_github_meta(url: str) -> dict | None:
     """Fetch real GitHub repo metadata via GitHub API."""
     try:
-        # Extract owner/repo from URL
         parts = url.rstrip('/').split('/')
         if len(parts) < 5:
             return None
-        owner = parts[-2]
-        repo = parts[-1]
+        owner, repo = parts[-2], parts[-1]
 
         headers = {'Accept': 'application/vnd.github.v3+json'}
         if GITHUB_TOKEN:
@@ -92,24 +97,66 @@ def fetch_github_meta(url):
             'size_kb': data.get('size', 0),
             'has_wiki': data.get('has_wiki', False),
             'has_pages': data.get('has_pages', False),
+            'owner': owner,
+            'repo': repo,
         }
     except Exception as e:
         print(f"GitHub API error: {e}")
         return None
 
 
-def fetch_webpage_content(url):
-    """Fetches and returns a content snippet from a standard webpage."""
+def fetch_github_readme(owner: str, repo: str, branch: str = 'main') -> str:
+    """
+    FIX 3: Actually fetch the README content from GitHub so Gemini has real data.
+    Falls back to 'master' if 'main' doesn't exist.
+    """
+    headers = {'Accept': 'application/vnd.github.v3+json'}
+    if GITHUB_TOKEN:
+        headers['Authorization'] = f'token {GITHUB_TOKEN}'
+
+    for ref in [branch, 'main', 'master']:
+        for filename in ['README.md', 'readme.md', 'README.rst', 'README.txt', 'README']:
+            raw_url = f'https://raw.githubusercontent.com/{owner}/{repo}/{ref}/{filename}'
+            try:
+                resp = requests.get(raw_url, headers=headers, timeout=8)
+                if resp.status_code == 200:
+                    # Limit to 8000 chars to stay within prompt budget
+                    return resp.text[:8000]
+            except Exception:
+                continue
+    return "README not found or repository may be private."
+
+
+def fetch_webpage_content(url: str) -> str:
+    """
+    FIX 4: Handle encoding errors gracefully when fetching webpage content.
+    """
     try:
-        response = requests.get(url, timeout=10)
-        response.raise_for_status()
-        content = response.text[:15000]
+        resp = requests.get(url, timeout=10, headers={
+            'User-Agent': 'Mozilla/5.0 (compatible; PortfolioReviewer/2.0)'
+        })
+        resp.raise_for_status()
+        # FIX 4: Use apparent_encoding with fallback to avoid UnicodeDecodeError
+        resp.encoding = resp.apparent_encoding or 'utf-8'
+        content = resp.text[:15000]
         return f"Content extracted from URL: {url}\n\n--- Content Snippet (max 15,000 chars) ---\n\n{content}"
+    except requests.exceptions.HTTPError as e:
+        return f"Error: HTTP {e.response.status_code} when fetching URL. The page may require authentication or does not exist."
+    except requests.exceptions.ConnectionError:
+        return f"Error: Could not connect to {url}. Please check the URL is correct and publicly accessible."
+    except requests.exceptions.Timeout:
+        return f"Error: Request timed out for {url}. The server took too long to respond."
     except requests.exceptions.RequestException as e:
-        return f"Error fetching content from URL. Please ensure the link is direct and publicly accessible. Error: {e}"
+        return f"Error fetching content from URL: {e}"
 
 
-def generate_structured_prompt(url, content, portfolio_type, is_github, github_meta=None):
+def generate_structured_prompt(
+    url: str,
+    content: str,
+    portfolio_type: str,
+    is_github: bool,
+    github_meta: dict | None = None,
+) -> str:
     """
     Generates a prompt that instructs Gemini to return a structured JSON object
     with scores and detailed sections.
@@ -127,7 +174,23 @@ GitHub Repository Statistics (Real Data):
 - Topics: {', '.join(github_meta.get('topics', []))}
 - Has GitHub Pages: {github_meta.get('has_pages', False)}
 - Description: {github_meta.get('description', 'Not provided')}
+- Repository Size (KB): {github_meta.get('size_kb', 0)}
 """
+
+    # FIX 5: Pre-compute the conditional string to avoid f-string nesting issues
+    # on Python < 3.12 where nested quotes inside f-strings are not allowed.
+    presentation_title = "Repository Structure & Docs" if is_github else "Presentation & UX"
+    github_focus = (
+        "Since this is a GitHub repository, focus heavily on: README quality and "
+        "completeness, project structure, code documentation quality (inferred), "
+        "commit history activity, use of topics/tags, license, CI/CD indicators, "
+        "and overall developer professionalism."
+        if is_github else
+        "Since this is a web portfolio, focus on: visual hierarchy, branding "
+        "consistency, project showcasing effectiveness, skills presentation, "
+        "contact information, responsiveness indicators, loading speed indicators, "
+        "and SEO elements."
+    )
 
     prompt = f"""
 You are an expert AI Portfolio Reviewer specializing in **{portfolio_type}** roles.
@@ -143,7 +206,7 @@ Content:
 {content}
 ---
 
-{"Since this is a GitHub repository, focus heavily on: README quality and completeness, project structure, code documentation quality (inferred), commit history activity, use of topics/tags, license, CI/CD indicators, and overall developer professionalism." if is_github else "Since this is a web portfolio, focus on: visual hierarchy, branding consistency, project showcasing effectiveness, skills presentation, contact information, responsiveness indicators, loading speed indicators, and SEO elements."}
+{github_focus}
 
 Return your response as a VALID JSON object with EXACTLY this structure (no markdown code blocks, pure JSON):
 
@@ -176,7 +239,7 @@ Return your response as a VALID JSON object with EXACTLY this structure (no mark
       "improvements": ["<improvement 1>", "<improvement 2>"]
     }},
     "presentation": {{
-      "title": "{('Repository Structure & Docs' if is_github else 'Presentation & UX')}",
+      "title": "{presentation_title}",
       "rating": "<Excellent | Strong | Good | Needs Work | Poor>",
       "content": "<detailed 3-5 paragraph markdown analysis>",
       "highlights": ["<positive point 1>", "<positive point 2>"],
@@ -201,6 +264,13 @@ Be specific, honest, and constructive. Use real insights based on the actual con
     return prompt
 
 
+def clean_json_response(raw: str) -> str:
+    """Strip markdown code fences that Gemini sometimes wraps around JSON."""
+    cleaned = re.sub(r'^```(?:json)?\s*', '', raw.strip(), flags=re.IGNORECASE)
+    cleaned = re.sub(r'\s*```$', '', cleaned)
+    return cleaned.strip()
+
+
 # ─────────────────────────────────────────────
 #  ROUTES
 # ─────────────────────────────────────────────
@@ -217,15 +287,15 @@ def health():
     return jsonify({
         'status': 'ok',
         'ai_service': 'available' if client else 'unavailable',
-        'version': '2.0.0'
+        'version': '2.1.0'
     })
 
 
 @app.route('/github-meta', methods=['POST'])
 @limiter.limit("30 per hour")
-def github_meta():
+def github_meta_route():
     """Returns GitHub repository metadata."""
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     url = data.get('url', '').strip()
 
     if not url or 'github.com' not in url.lower():
@@ -245,79 +315,111 @@ def analyze_portfolio():
     if not client:
         return jsonify({'error': 'AI service is unavailable. Check GEMINI_API_KEY configuration.'}), 503
 
-    data = request.get_json()
-    portfolio_url = data.get('url', '').strip()
+    data = request.get_json(silent=True) or {}
+    portfolio_url  = data.get('url', '').strip()
     portfolio_type = data.get('type', 'General').strip()
-    model_alias = data.get('model', 'flash').strip()
-    user_context = data.get('context', '').strip()
+    model_alias    = data.get('model', 'flash').strip()
+    user_context   = data.get('context', '').strip()
+
+    # FIX 2: validate URL before doing any network calls
+    if not portfolio_url:
+        return jsonify({'error': 'Please provide a portfolio URL.'}), 400
+    if not is_valid_url(portfolio_url):
+        return jsonify({'error': 'Invalid URL. URL must start with http:// or https://'}), 400
 
     selected_model = AVAILABLE_MODELS.get(model_alias, AVAILABLE_MODELS['flash'])
+    is_github = 'github.com' in portfolio_url.lower()
 
-    if not portfolio_url:
-        return jsonify({'error': 'Please provide a valid portfolio URL.'}), 400
-
-    is_github = "github.com" in portfolio_url.lower()
-
-    # Fetch GitHub metadata if applicable
+    # --- Fetch metadata & content ---
     github_meta_data = None
     if is_github:
         github_meta_data = fetch_github_meta(portfolio_url)
-
-    # Fetch content
-    if is_github:
-        repo_name = portfolio_url.rstrip('/').split('/')[-1]
-        user_name = portfolio_url.rstrip('/').split('/')[-2]
-        content = (
-            f"GitHub Repository: {user_name}/{repo_name}\n"
-            f"URL: {portfolio_url}\n"
-            f"[The AI should analyze this based on the GitHub metadata and URL structure provided. "
-            f"Focus on what can be inferred from the repository statistics and common best practices.]"
-        )
-        if user_context:
-            content += f"\n\nAdditional context from user: {user_context}"
+        if github_meta_data:
+            owner  = github_meta_data['owner']
+            repo   = github_meta_data['repo']
+            branch = github_meta_data.get('default_branch', 'main')
+            # FIX 3: Pull the actual README so Gemini has real text to analyse
+            readme_text = fetch_github_readme(owner, repo, branch)
+            content = (
+                f"GitHub Repository: {owner}/{repo}\n"
+                f"URL: {portfolio_url}\n\n"
+                f"--- README Content ---\n{readme_text}"
+            )
+        else:
+            # Couldn't hit the API — fall back to URL-only hint
+            parts = portfolio_url.rstrip('/').split('/')
+            owner = parts[-2] if len(parts) >= 2 else 'unknown'
+            repo  = parts[-1] if len(parts) >= 1 else 'unknown'
+            content = (
+                f"GitHub Repository: {owner}/{repo}\n"
+                f"URL: {portfolio_url}\n"
+                f"[Repository metadata could not be fetched. Analyse based on URL structure only.]"
+            )
     else:
         content = fetch_webpage_content(portfolio_url)
-        if content.startswith("Error fetching content"):
+        if content.startswith("Error"):
             return jsonify({'error': content}), 500
-        if user_context:
-            content += f"\n\nAdditional context from user: {user_context}"
 
-    # Build prompt
-    prompt = generate_structured_prompt(portfolio_url, content, portfolio_type, is_github, github_meta_data)
+    if user_context:
+        content += f"\n\nAdditional context from user: {user_context}"
+
+    # --- Build prompt ---
+    prompt = generate_structured_prompt(
+        portfolio_url, content, portfolio_type, is_github, github_meta_data
+    )
+
+    # FIX 1 (Safety): 'OFF' is not a valid threshold value in google-genai.
+    # The correct string is 'BLOCK_NONE'.
+    safety_settings = [
+        types.SafetySetting(category='HARM_CATEGORY_HARASSMENT',        threshold='BLOCK_NONE'),
+        types.SafetySetting(category='HARM_CATEGORY_HATE_SPEECH',       threshold='BLOCK_NONE'),
+        types.SafetySetting(category='HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold='BLOCK_NONE'),
+        types.SafetySetting(category='HARM_CATEGORY_DANGEROUS_CONTENT', threshold='BLOCK_NONE'),
+    ]
+
+    generation_config = types.GenerateContentConfig(
+        response_mime_type='application/json',
+        temperature=0.4,
+        safety_settings=safety_settings,
+    )
 
     try:
         response = client.models.generate_content(
             model=selected_model,
-            contents=[prompt]
+            contents=[prompt],
+            config=generation_config,
         )
 
         raw_text = response.text.strip()
+        json_text = clean_json_response(raw_text)
 
-        # Try to parse as JSON
         try:
-            # Remove potential markdown code fences
-            json_text = re.sub(r'^```(?:json)?\n?', '', raw_text, flags=re.MULTILINE)
-            json_text = re.sub(r'\n?```$', '', json_text, flags=re.MULTILINE)
-            analysis_data = json.loads(json_text.strip())
+            analysis_data = json.loads(json_text)
             return jsonify({
                 'success': True,
                 'structured': True,
                 'analysis': analysis_data,
                 'github_meta': github_meta_data,
-                'model_used': selected_model
+                'model_used': selected_model,
             })
         except (json.JSONDecodeError, ValueError):
-            # Fallback: return raw markdown text
+            # Fallback: return raw markdown text if JSON parsing fails
             return jsonify({
                 'success': True,
                 'structured': False,
                 'analysis': raw_text,
                 'github_meta': github_meta_data,
-                'model_used': selected_model
+                'model_used': selected_model,
             })
 
     except APIError as e:
-        return jsonify({'error': f'Gemini API Error: Could not process the request. (Status: {e.status_code}). Please verify the API key and model usage.'}), 500
+        return jsonify({
+            'error': (
+                f'Gemini API Error: Could not process the request. '
+                f'(Status: {e.status_code}). '
+                f'Please verify the API key and model usage.'
+            )
+        }), 500
     except Exception as e:
         return jsonify({'error': f'An unexpected error occurred during AI processing: {str(e)}'}), 500
 
